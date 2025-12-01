@@ -1,65 +1,122 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { LogoHeader } from "@/components/logo-header";
+import {
+  PreferencesForm,
+  type PreferencesValues,
+} from "@/components/preferences-form";
+import { IdeaBoard } from "@/components/idea-board";
+import type { IdeaDto, GenerateIdeasResponseBody } from "@/types/ideas";
+
+export default function HomePage() {
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reshuffling, setReshuffling] = useState(false);
+  const [ideas, setIdeas] = useState<IdeaDto[]>([]);
+  const [visibleIdeas, setVisibleIdeas] = useState<IdeaDto[]>([]);
+  const [previousTitles, setPreviousTitles] = useState<string[]>([]);
+  const [lastPrefs, setLastPrefs] = useState<PreferencesValues | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const callGenerateIdeas = async (prefs: PreferencesValues) => {
+    const res = await fetch("/api/generate-ideas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        interests: prefs.interests,
+        skillLevel: prefs.skillLevel,
+        stack: prefs.stack,
+        previousTitles,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Failed to generate ideas:", text);
+      throw new Error("Failed to generate ideas");
+    }
+
+    const data = (await res.json()) as GenerateIdeasResponseBody;
+    return data.ideas;
+  };
+
+  const handleGenerate = async (values: PreferencesValues) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // New preferences reset the history
+      const ideasFromApi = await callGenerateIdeas(values);
+
+      setIdeas(ideasFromApi);
+      setVisibleIdeas(ideasFromApi);
+      setPreviousTitles(ideasFromApi.map((i) => i.title));
+      setLastPrefs(values);
+      setHasGenerated(true);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong talking to the idea oracle. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReshuffle = async () => {
+    if (!lastPrefs) return;
+    try {
+      setReshuffling(true);
+      setError(null);
+
+      const newIdeas = await callGenerateIdeas(lastPrefs);
+
+      setIdeas((prev) => [...prev, ...newIdeas]);
+      setVisibleIdeas(newIdeas);
+      setPreviousTitles((prev) => [...prev, ...newIdeas.map((i) => i.title)]);
+    } catch (err) {
+      console.error(err);
+      setError("Could not reshuffle ideas. Try again in a moment.");
+    } finally {
+      setReshuffling(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl flex-col items-center">
+      <motion.div
+        layout
+        initial={{ y: 40, opacity: 0 }}
+        animate={{
+          y: hasGenerated ? -40 : 0,
+          opacity: 1,
+          scale: hasGenerated ? 0.94 : 1,
+        }}
+        transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        className="flex w-full flex-col items-center"
+      >
+        <LogoHeader compact={hasGenerated} />
+        <PreferencesForm
+          compact={hasGenerated}
+          loading={loading}
+          defaultValues={lastPrefs ?? undefined}
+          onSubmit={handleGenerate}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      </motion.div>
+
+      {error && (
+        <div className="mt-6 w-full max-w-xl rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {error}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+
+      {hasGenerated && visibleIdeas.length > 0 && (
+        <IdeaBoard
+          ideas={visibleIdeas}
+          onReshuffle={handleReshuffle}
+          reshuffling={reshuffling}
+        />
+      )}
     </div>
   );
 }
