@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+enum SkillLevel {
+  TOTAL_BEGINNER
+  BEGINNER
+  COMFORTABLE_CRUD
+}
+
+enum IdeaDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+model IdeaGeneration {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+
+  interests   String
+  skillLevel  SkillLevel   // <- was String
+  stack       String
+
+  clientToken String?
+
+  ideas       Idea[]
+}
+
+model Idea {
+  id           String          @id @default(cuid())
+  createdAt    DateTime        @default(now())
+
+  title        String
+  niche        String
+  problem      String
+  solution     String
+  difficulty   IdeaDifficulty? // <- was String?
+  techFocus    String?
+
+  used         Boolean         @default(false)
+
+  generation   IdeaGeneration  @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  generationId String
+}
