@@ -21,10 +21,10 @@ export default function RootLayout({
           <div className="min-h-screen">
             <header className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-6">
               <div className="text-sm font-medium text-muted-foreground">
-                <span className="font-semibold text-primary">Shuffl</span>{" "}
+                {/* <span className="font-semibold text-primary">Shuffl</span>{" "}
                 <span className="hidden sm:inline">
                   · idea tarot for beginner devs
-                </span>
+                </span> */}
               </div>
               <ThemeToggle />
             </header>
